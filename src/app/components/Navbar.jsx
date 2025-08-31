@@ -6,53 +6,17 @@ import Image from "next/image";
 import ReactCountryFlag from "react-country-flag";
 import { useCountry } from "../../app/context/CountryContext";
 
+// ✅ yeni: aktif route için
+import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
+
 // 1) Çeviri sözlüğü
 const dict = {
-  tr: {
-    home: "Ana Sayfa",
-    about: "Hakkımızda",
-    services: "Hizmetler",
-    projects: "Referanslar",
-    faq: "SSS",
-    contact: "İletişim",
-    countrySelect: "Ülke Seç",
-  },
-  en: {
-    home: "Home",
-    about: "About",
-    services: "Services",
-    projects: "Projects",
-    faq: "FAQ",
-    contact: "Contact",
-    countrySelect: "Select Country",
-  },
-  de: {
-    home: "Startseite",
-    about: "Über uns",
-    services: "Leistungen",
-    projects: "Referenzen",
-    faq: "FAQ",
-    contact: "Kontakt",
-    countrySelect: "Land wählen",
-  },
-  fr: {
-    home: "Accueil",
-    about: "À propos",
-    services: "Services",
-    projects: "Références",
-    faq: "FAQ",
-    contact: "Contact",
-    countrySelect: "Choisir le pays",
-  },
-  es: {
-    home: "Inicio",
-    about: "Nosotros",
-    services: "Servicios",
-    projects: "Proyectos",
-    faq: "Preguntas",
-    contact: "Contacto",
-    countrySelect: "Elegir país",
-  },
+  tr: { home: "Ana Sayfa", about: "Hakkımızda", services: "Hizmetler", projects: "Referanslar", faq: "SSS", contact: "İletişim", countrySelect: "Ülke Seç" },
+  en: { home: "Home", about: "About", services: "Services", projects: "Projects", faq: "FAQ", contact: "Contact", countrySelect: "Select Country" },
+  de: { home: "Startseite", about: "Über uns", services: "Leistungen", projects: "Referenzen", faq: "FAQ", contact: "Kontakt", countrySelect: "Land wählen" },
+  fr: { home: "Accueil", about: "À propos", services: "Services", projects: "Références", faq: "FAQ", contact: "Contact", countrySelect: "Choisir le pays" },
+  es: { home: "Inicio", about: "Nosotros", services: "Servicios", projects: "Proyectos", faq: "Preguntas", contact: "Contacto", countrySelect: "Elegir país" },
 };
 
 const countries = [
@@ -82,9 +46,22 @@ export default function Navbar() {
   ];
 
   function onSelectCountry(c) {
-    setCountry(c.code); // ⬅ context'i güncelle → locale değişir → Navbar yeniden render
+    setCountry(c.code);
     setCOpen(false);
   }
+
+  // ✅ aktif route hesaplama
+  const pathname = usePathname();
+  const normalize = (p) => {
+    if (!p) return "/";
+    const n = p.replace(/\/+$/, "");
+    return n === "" ? "/" : n;
+  };
+  const isActive = (href) => {
+    const a = normalize(pathname);
+    const h = normalize(href);
+    return a === h || (h !== "/" && a.startsWith(h));
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
@@ -96,17 +73,33 @@ export default function Navbar() {
 
         {/* Masaüstü */}
         <nav className="hidden md:flex items-center gap-6">
-          {nav.map((i) => (
-            <Link
-              key={i.href}
-              href={i.href}
-              className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium"
-            >
-              {i.label}
-            </Link>
-          ))}
+          {/* ✅ animasyonlu underline sadece sayfa linklerinde */}
+          {nav.map((i) => {
+            const active = isActive(i.href);
+            return (
+              <div key={i.href} className="relative">
+                <Link
+                  href={i.href}
+                  className={`relative px-1.5 py-1 font-medium transition-colors ${
+                    active ? "text-gray-900" : "text-gray-700 hover:text-gray-900"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {i.label}
+                </Link>
 
-          {/* Ülke dropdown */}
+                {active && (
+                  <motion.span
+                    layoutId="nav-active-underline"
+                    className="absolute left-0 right-0 -bottom-1 h-[2px] rounded-full bg-gray-900"
+                    transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                  />
+                )}
+              </div>
+            );
+          })}
+
+          {/* Ülke dropdown – burada ekstra renk/efekt yok */}
           <div
             className="relative"
             onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setCOpen(false)}
@@ -125,7 +118,10 @@ export default function Navbar() {
             </button>
 
             {cOpen && (
-              <ul role="listbox" className="absolute right-0 mt-2 w-52 rounded-xl border border-gray-200 bg-white shadow-lg">
+              <ul
+                role="listbox"
+                className="absolute right-0 mt-2 w-52 rounded-xl border border-gray-200 bg-white shadow-lg"
+              >
                 {countries.map((c) => (
                   <li key={c.code}>
                     <button
@@ -138,7 +134,7 @@ export default function Navbar() {
                     >
                       <ReactCountryFlag countryCode={c.code} svg style={{ width: "1.1em", height: "1.1em" }} />
                       <span className="truncate">
-                        {countries.find(x => x.code === c.code)?.label}
+                        {countries.find((x) => x.code === c.code)?.label}
                       </span>
                       <span className="ml-auto text-xs text-gray-400">{c.code}</span>
                     </button>
@@ -160,12 +156,19 @@ export default function Navbar() {
         <div className="md:hidden border-t border-gray-100">
           <div className="container-max py-3 flex flex-col gap-3">
             {nav.map((i) => (
-              <Link key={i.href} href={i.href} className="text-gray-700 font-medium" onClick={() => setOpen(false)}>
+              <Link
+                key={i.href}
+                href={i.href}
+                className={`rounded-lg px-3 py-2 text-sm transition ${
+                  isActive(i.href) ? "font-semibold text-gray-900 bg-gray-50" : "text-gray-700 hover:bg-gray-50"
+                }`}
+                onClick={() => setOpen(false)}
+              >
                 {i.label}
               </Link>
             ))}
 
-            {/* Mobil ülke listesi */}
+            {/* Mobil ülke listesi – ekstra renk yok */}
             <div className="mt-2 rounded-lg border border-gray-200">
               {countries.map((c) => (
                 <button
@@ -176,7 +179,7 @@ export default function Navbar() {
                   }`}
                 >
                   <ReactCountryFlag countryCode={c.code} svg style={{ width: "1.1em", height: "1.1em" }} />
-                  {countries.find(x => x.code === c.code)?.label}
+                  {countries.find((x) => x.code === c.code)?.label}
                 </button>
               ))}
             </div>
